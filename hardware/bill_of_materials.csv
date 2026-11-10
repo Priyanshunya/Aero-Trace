@@ -1,0 +1,9 @@
+Component,Function,Cost (INR)
+ESP32-S3,Edge compute & SRAM anomaly buffering,700
+SX1262,Zero-OpEx LoRa mesh transceiver,500
+PMS5003,Particulate sensing (PM2.5 / PM10),1400
+SHT40,Temperature + humidity compensation,400
+SPEC CO / NO2,Electrochemical combustion gas sensing,4000
+LMP91000,Ultra-low-noise gas signal conditioning (AFE),500
+Battery + BQ24075 + PCB & IP65 Housing,AC power-path management & Li-ion failover,1000
+Total Node Cost,,8500
