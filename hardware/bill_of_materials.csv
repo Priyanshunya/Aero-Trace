@@ -1,4 +1,4 @@
-Component,Function,Cost (INR)
+Component,Function,Estimated Cost (INR)
 ESP32-S3,Edge compute & SRAM anomaly buffering,700
 SX1262,Zero-OpEx LoRa mesh transceiver,500
 PMS5003,Particulate sensing (PM2.5 / PM10),1400
