@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AeroTrace Edge | Array Dashboard</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --surface: #ffffff;
+            --border: #e0e6ed;
+            --text-main: #2d3748;
+            --text-muted: #718096;
+            --primary: #3182ce;
+            --primary-hover: #2b6cb0;
+            --success: #38a169;
+            --danger: #e53e3e;
+            --pm-color: #805ad5;
+            --temp-color: #dd6b20;
+            --rh-color: #319795;
+            --gas-color: #e53e3e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.5;
+            padding: 20px;
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* top nav and connect buttons */
+        header {
+            background-color: var(--surface);
+            padding: 15px 25px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .brand-section h1 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .brand-section p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: #f7fafc;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--danger);
+        }
+
+        .dot.connected { background-color: var(--success); }
+
+        button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        #connectBtn {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        #connectBtn:hover { background-color: var(--primary-hover); }
+        
+        #disconnectBtn {
+            background-color: #edf2f7;
+            color: var(--text-main);
+            border: 1px solid var(--border);
+        }
+
+        #disconnectBtn:disabled, #connectBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* live number grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .kpi-card {
+            background-color: var(--surface);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            position: relative;
+        }
+
+        /* color bars on top of cards */
+        .kpi-card::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+        .kpi-pm::before { background-color: var(--pm-color); }
+        .kpi-temp::before { background-color: var(--temp-color); }
+        .kpi-rh::before { background-color: var(--rh-color); }
+        .kpi-gas::before { background-color: var(--gas-color); }
+
+        .kpi-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: baseline;
+            gap: 5px;
+        }
+
+        .kpi-unit {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        /* charting areas */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .chart-card {
+            background-color: var(--surface);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            height: 350px;
+        }
+
+        /* stretch the PM chart across the top */
+        .chart-card.full-width {
+            grid-column: 1 / -1;
+            height: 300px;
+        }
+
+        .chart-header {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--text-main);
+        }
+
+        .canvas-container {
+            position: relative;
+            height: calc(100% - 40px);
+            width: 100%;
+        }
+
+        /* terminal window for debugging the json stream */
+        .diagnostics-panel {
+            background-color: #1a202c;
+            border-radius: 8px;
+            padding: 15px;
+            color: #48bb78;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 0.85rem;
+            height: 150px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .sys-info {
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 10px;
+            padding: 0 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-container">
+    
+    <header>
+        <div class="brand-section">
+            <h1>AeroTrace Dashboard</h1>
+            <p>BLE Edge-Compute Node (v1)</p>
+        </div>
+        <div class="controls">
+            <div class="status-badge">
+                <span class="dot" id="statusDot"></span>
+                <span id="statusText">Disconnected</span>
+            </div>
+            <button id="connectBtn">Connect Node</button>
+            <button id="disconnectBtn" disabled>Disconnect</button>
+        </div>
+    </header>
+
+    <div class="kpi-grid">
+        <div class="kpi-card kpi-pm">
+            <div class="kpi-title">Particulate Matter (PM2.5)</div>
+            <div class="kpi-value" id="kpi-pm25">-- <span class="kpi-unit">µg/m³</span></div>
+        </div>
+        <div class="kpi-card kpi-pm">
+            <div class="kpi-title">Particulate Matter (PM10)</div>
+            <div class="kpi-value" id="kpi-pm10">-- <span class="kpi-unit">µg/m³</span></div>
+        </div>
+        <div class="kpi-card kpi-temp">
+            <div class="kpi-title">Ambient Temperature</div>
+            <div class="kpi-value" id="kpi-temp">-- <span class="kpi-unit">°C</span></div>
+        </div>
+        <div class="kpi-card kpi-rh">
+            <div class="kpi-title">Relative Humidity</div>
+            <div class="kpi-value" id="kpi-rh">-- <span class="kpi-unit">%</span></div>
+        </div>
+        <div class="kpi-card kpi-gas">
+            <div class="kpi-title">Carbon Monoxide (MQ-7)</div>
+            <div class="kpi-value" id="kpi-mq7">-- <span class="kpi-unit">RAW ADC</span></div>
+        </div>
+        <div class="kpi-card kpi-gas">
+            <div class="kpi-title">Air Quality (MQ-135)</div>
+            <div class="kpi-value" id="kpi-mq135">-- <span class="kpi-unit">RAW ADC</span></div>
+        </div>
+    </div>
+
+    <div class="chart-grid">
+        <div class="chart-card full-width">
+            <div class="chart-header">Particulate Scatter Analysis (PMS5003)</div>
+            <div class="canvas-container">
+                <canvas id="pmChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="chart-card">
+            <div class="chart-header">Climate Data (SHT10)</div>
+            <div class="canvas-container">
+                <canvas id="climateChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="chart-card">
+            <div class="chart-header">Analog Gas Array Voltages</div>
+            <div class="canvas-container">
+                <canvas id="gasChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="diagnostics-panel" id="terminalFeed">Awaiting Web Bluetooth GATT connection...</div>
+        <div class="sys-info">
+            <span id="sys-uptime">Uptime: --</span>
+            <span id="sys-seq">Packet Seq: --</span>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const BLE_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+    const BLE_TX_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+
+    let bleDevice, bleServer, rxCharacteristic;
+    let dataBuffer = '';
+    
+    // limit data points so the browser doesn't lag after 10 mins of streaming
+    const MAX_DATA_POINTS = 100;
+
+    Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    Chart.defaults.color = '#718096';
+    Chart.defaults.scale.grid.color = '#edf2f7';
+
+    // shared settings so we don't repeat this block
+    const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false, // disabled so the live stream doesn't look jittery
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { position: 'top', labels: { boxWidth: 12, usePointStyle: true } } },
+        scales: {
+            x: { display: false }, // hiding x axis so it doesn't get cluttered with timestamps
+            y: { beginAtZero: false }
+        }
+    };
+
+    const pmCtx = document.getElementById('pmChart').getContext('2d');
+    const pmChart = new Chart(pmCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                { label: 'PM 1.0', data: [], borderColor: '#a0aec0', borderWidth: 2, pointRadius: 0, tension: 0.3 },
+                { label: 'PM 2.5', data: [], borderColor: '#805ad5', borderWidth: 2, pointRadius: 0, tension: 0.3 },
+                { label: 'PM 10', data: [], borderColor: '#d53f8c', borderWidth: 2, pointRadius: 0, tension: 0.3 }
+            ]
+        },
+        options: commonOptions
+    });
+
+    const climateCtx = document.getElementById('climateChart').getContext('2d');
+    const climateChart = new Chart(climateCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                { label: 'Temp (°C)', data: [], borderColor: '#dd6b20', yAxisID: 'y', borderWidth: 2, pointRadius: 0, tension: 0.3 },
+                { label: 'Humidity (%)', data: [], borderColor: '#319795', yAxisID: 'y1', borderWidth: 2, pointRadius: 0, tension: 0.3 }
+            ]
+        },
+        options: {
+            ...commonOptions,
+            scales: {
+                x: { display: false },
+                y: { type: 'linear', display: true, position: 'left', title: {display: true, text:'°C'} },
+                y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: {display: true, text:'%'} }
+            }
+        }
+    });
+
+    const gasCtx = document.getElementById('gasChart').getContext('2d');
+    const gasChart = new Chart(gasCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                { label: 'MQ-7 (CO)', data: [], borderColor: '#e53e3e', fill: true, backgroundColor: 'rgba(229, 62, 62, 0.1)', borderWidth: 2, pointRadius: 0, tension: 0.3 },
+                { label: 'MQ-135 (AirQual)', data: [], borderColor: '#dd6b20', fill: true, backgroundColor: 'rgba(221, 107, 32, 0.1)', borderWidth: 2, pointRadius: 0, tension: 0.3 }
+            ]
+        },
+        options: commonOptions
+    });
+
+    // pair device via web bluetooth api
+    document.getElementById('connectBtn').addEventListener('click', async () => {
+        try {
+            updateStatus('Requesting bluetooth device...', false);
+            bleDevice = await navigator.bluetooth.requestDevice({
+                filters: [{ namePrefix: 'AeroTrace' }],
+                optionalServices: [BLE_SERVICE_UUID]
+            });
+
+            bleDevice.addEventListener('gattserverdisconnected', handleDisconnection);
+
+            updateStatus('Connecting to server...', false);
+            bleServer = await bleDevice.gatt.connect();
+
+            const service = await bleServer.getPrimaryService(BLE_SERVICE_UUID);
+            rxCharacteristic = await service.getCharacteristic(BLE_TX_UUID);
+
+            await rxCharacteristic.startNotifications();
+            rxCharacteristic.addEventListener('characteristicvaluechanged', handleIncomingData);
+
+            updateStatus(`Connected: ${bleDevice.name}`, true);
+            document.getElementById('connectBtn').disabled = true;
+            document.getElementById('disconnectBtn').disabled = false;
+            document.getElementById('terminalFeed').textContent = "Listening for JSON stream...\n";
+
+        } catch (error) {
+            console.error(error);
+            updateStatus('Connection failed', false);
+        }
+    });
+
+    document.getElementById('disconnectBtn').addEventListener('click', () => {
+        if (bleDevice && bleDevice.gatt.connected) {
+            bleDevice.gatt.disconnect();
+        }
+    });
+
+    function handleDisconnection() {
+        updateStatus('Disconnected', false);
+        document.getElementById('connectBtn').disabled = false;
+        document.getElementById('disconnectBtn').disabled = true;
+    }
+
+    function updateStatus(message, isConnected) {
+        document.getElementById('statusText').textContent = message;
+        document.getElementById('statusDot').className = 'dot ' + (isConnected ? 'connected' : '');
+    }
+
+    function handleIncomingData(event) {
+        const decoder = new TextDecoder('utf-8');
+        dataBuffer += decoder.decode(event.target.value);
+
+        // check if we have a full json packet yet
+        let closingBrace = dataBuffer.indexOf('}');
+        while (closingBrace !== -1) {
+            // pull out the completed json block and leave the rest in buffer
+            const completeJson = dataBuffer.slice(0, closingBrace + 1);
+            dataBuffer = dataBuffer.slice(closingBrace + 1);
+            
+            try {
+                const parsed = JSON.parse(completeJson);
+                updateDashboard(parsed);
+                logToTerminal(completeJson);
+            } catch (e) {
+                // packet was probably corrupted over air, ignore it
+            }
+            closingBrace = dataBuffer.indexOf('}');
+        }
+    }
+
+    function updateDashboard(data) {
+        const formatKPI = (val) => val === null ? 'ERR' : val;
+        
+        document.getElementById('kpi-pm25').innerHTML = `${formatKPI(data.pm25)} <span class="kpi-unit">µg/m³</span>`;
+        document.getElementById('kpi-pm10').innerHTML = `${formatKPI(data.pm10)} <span class="kpi-unit">µg/m³</span>`;
+        document.getElementById('kpi-temp').innerHTML = `${formatKPI(data.temp)} <span class="kpi-unit">°C</span>`;
+        document.getElementById('kpi-rh').innerHTML = `${formatKPI(data.rh)} <span class="kpi-unit">%</span>`;
+        document.getElementById('kpi-mq7').innerHTML = `${formatKPI(data.mq7_raw)} <span class="kpi-unit">ADC</span>`;
+        document.getElementById('kpi-mq135').innerHTML = `${formatKPI(data.mq135_raw)} <span class="kpi-unit">ADC</span>`;
+
+        document.getElementById('sys-uptime').textContent = `Uptime: ${(data.uptime_ms / 1000).toFixed(1)}s`;
+        document.getElementById('sys-seq').textContent = `Packet Seq: ${data.seq}`;
+
+        const timestamp = new Date().toLocaleTimeString();
+        
+        pmChart.data.labels.push(timestamp);
+        climateChart.data.labels.push(timestamp);
+        gasChart.data.labels.push(timestamp);
+
+        // if a sensor is null (dropped out), just plot it as null so it breaks the line cleanly
+        pmChart.data.datasets[0].data.push(data.pm1 !== null ? data.pm1 : null);
+        pmChart.data.datasets[1].data.push(data.pm25 !== null ? data.pm25 : null);
+        pmChart.data.datasets[2].data.push(data.pm10 !== null ? data.pm10 : null);
+        
+        climateChart.data.datasets[0].data.push(data.temp !== null ? data.temp : null);
+        climateChart.data.datasets[1].data.push(data.rh !== null ? data.rh : null);
+        
+        gasChart.data.datasets[0].data.push(data.mq7_raw);
+        gasChart.data.datasets[1].data.push(data.mq135_raw);
+
+        // scroll the charts once they hit the limit
+        if (pmChart.data.labels.length > MAX_DATA_POINTS) {
+            [pmChart, climateChart, gasChart].forEach(chart => {
+                chart.data.labels.shift();
+                chart.data.datasets.forEach(dataset => dataset.data.shift());
+            });
+        }
+
+        pmChart.update();
+        climateChart.update();
+        gasChart.update();
+    }
+
+    function logToTerminal(str) {
+        const term = document.getElementById('terminalFeed');
+        term.textContent += str + '\n';
+        // dump old terminal text so dom doesn't crash
+        if (term.textContent.length > 2000) {
+            term.textContent = term.textContent.slice(-2000);
+        }
+        term.scrollTop = term.scrollHeight;
+    }
+</script>
+
+</body>
+</html>
