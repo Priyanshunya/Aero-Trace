@@ -1,67 +1,43 @@
-# AeroTrace: Edge-Computed Urban Air Quality Mesh Network
+# AeroTrace: Hyperlocal Pollution Intelligence
 > **SEVA First Innovation Challenge 2026 | Team Vision.exe**
+> **City & Urban Problems**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Hardware](https://img.shields.io/badge/Compute-ESP32--S3-blue)](https://www.espressif.com/)
+[![RF](https://img.shields.io/badge/Network-SX1262%20LoRa-orange)](https://www.semtech.com/)
+[![Target](https://img.shields.io/badge/Target%20Cost-%E2%82%B98%2C500-brightgreen)]()
 
----
+## Overview: Curing Data Paralysis
+Current government-grade Continuous Ambient Air Quality Monitoring Stations (CAAQMS) have massive spatial blind spots and cannot observe street-level micro-emissions. Meanwhile, uncorrected low-cost sensors suffer from chemical cross-sensitivity and humidity-driven false readings, showing false PM spikes of up to 30-50% during high-humidity winter fog. 
 
-## Overview: The AeroTrace Paradigm
-Standard low-cost air quality sensors have a fatal flaw: during urban winter fog, high relative humidity causes optical scattering that laser counters misinterpret as extreme particulate pollution. Meanwhile, government-grade monitoring stations are highly accurate but too sparse and expensive to track street-level micro-emissions.
+This creates "dispatch paralysis": municipal enforcement teams receive generic heatmaps without verified evidence, making dispatching response teams pure guesswork. 
 
-**AeroTrace fundamentally re-engineers environmental monitoring for dense urban wards. It is a 100% decentralized, edge-computed triage ecosystem.**
+**AeroTrace** bridges this gap. It turns a local anomaly into a trustworthy, GPS-pinned dispatch lead. By executing an empirical Multiple Linear Regression (MLR) matrix at the edge, the node mathematically filters out weather-driven sensor hallucinations before they trigger an alert. It targets a >95% reduction in humidity-driven false alarms.
 
-Instead of blindly streaming raw, unverified 1Hz data to a centralized cloud—draining power and bandwidth—AeroTrace buffers data in SRAM, applies localized environmental compensation, and transmits optimized JSON telemetry. Designed for zero-OpEx scalability, the node leverages Bluetooth Low Energy (BLE) for localized mobile diagnostics and a sub-GHz LoRa mesh for city-wide reporting.
+## Core Engineering Pillars
+Instead of passive data dashboards, our backend outputs a ranked "Next-Best-Check" dispatch queue to direct enforcement teams to exact GPS coordinates based on anomaly persistence and severity.
 
-### Core Engineering Pillars
-- **Memory-Safe Edge Firmware:** Built entirely in C++ without standard Arduino `String` usage. Telemetry is constructed using strict `snprintf` bounds into fixed `char` arrays to eliminate heap fragmentation during months of continuous uptime.
-- **Asynchronous Non-Blocking I/O:** Relies purely on `millis()` state machines. Hardware serial buffers (like the 32-byte PMS5003 optical frames) are continuously parsed with strict mathematical checksum validation without stalling the main loop.
-- **Zero-Cloud Local Diagnostics:** Features a standalone vanilla HTML/JS dashboard utilizing the native Web Bluetooth API. It plots live ~2.5 Hz data streams directly to a browser via Chart.js, requiring zero cloud infrastructure for bench calibration.
-- **Hardware-Isolated RF:** The SX1278 LoRa transceiver is physically wired but locked in hardware standby (NSS pulled HIGH) during BLE transmission to prevent SPI bus noise from corrupting sensitive analog ADC gas readings.
+* **Edge-Triggered SRAM Isolation:** Instead of blindly streaming raw 1Hz data, the ESP32-S3 buffers pre-event data locally in an SRAM circular buffer.
+* **Hypothesis-Falsification Engine:** Integrates SPEC CO/NO2 electrochemical gas tracers alongside dust ratios to chemically classify the violation type (e.g., distinguishing an illegal biomass fire from a dusty construction site) before inspectors arrive.
+* **Zero-OpEx Private LoRa:** Uses an SX1262 LoRa transceiver operating on the 865-867 MHz (India) band with AES-128/TLS 1.3 security to transmit compressed binary packets, avoiding cellular SIM fees entirely.
+* **Continuous Power-Path:** Employs a TI BQ24075 AC-to-battery failover system, piggybacking on municipal AC grids (like streetlights) and seamlessly switching to a 21700 Li-ion battery backup during daytime grid shutoffs.
 
----
+## Hardware Architecture & BOM (Target: ₹8,500)
 
-## Physical Prototype & Hardware Architecture
-To ensure clean analog signal conditioning and prevent power-draw spikes from resetting the MCU, the hardware architecture is built around dedicated power-path management and isolated data buses.
+| Circuit Schematic | Assembled Prototype (Front) | Assembled Prototype (Back) |
+| :---: | :---: | :---: |
+| ![Schematic](hardware/Schematic_Diagram.png) | ![Front View](hardware/prototype_front.jpg) | ![Back View](hardware/prototype_back.jpg) |
 
-- **UART2:** PMS5003 Optical Particulate Counter (Pins 16/17).
-- **ADC1:** MQ-7 (CO) and MQ-135 (Air Quality) via resistor voltage dividers (Pins 32/33).
-- **Custom Digital:** SHT10 Climate Sensor (Pins 21/22).
-- **SPI Bus:** SX1278 LoRa Module (Pin 18 NSS).
+* **Compute:** ESP32-S3 (Edge compute & SRAM anomaly buffering)
+* **Particulate Sensing:** Plantower PMS5003 (PM1.0/2.5/10)
+* **Climate / Humidity Compensation:** Sensirion SHT40 (±0.2% RH)
+* **Combustion Gas Tracers:** SPEC CO / NO2 with LMP91000 ultra-low-noise analog front-end (AFE)
+* **RF Transceiver:** SX1262 LoRa Module
 
-### System Schematics & 3D Design
-| 3D Enclosure Design | Circuit Schematic Diagram |
-| :---: | :---: |
-| ![AeroTrace 3D Design](hardware/3D_Design_AeroTrace.png) | ![AeroTrace Schematic](hardware/Schematic_Diagram.png) |
+## Edge Triage Pipeline
+Every alert must survive five checks (Capture, Quality Gate, Corroborate, Falsify, Verify) before reaching a field team.
 
-*(See the `/hardware` directory for the full Bill of Materials (BOM) and power-path failover documentation utilizing the TI BQ24075).*
-
----
-
-## Architecture: MVP vs. Production Roadmap
-We built a fully functional MVP using COTS components to validate the memory-safe firmware architecture and localized BLE dashboard. The roadmap scales this architecture into a highly calibrated, municipal-grade mesh network.
-
-> **1. [ SENSE ]**
-> * **MVP (Current):** Plantower PMS5003 (Particulates) | SHT10 (Climate) | MQ-7 & MQ-135 (Analog Gas).
-> * **Production Vision:** Sensirion SPS30 (MCERTS-certified Particulates) | SHT40 (High-Precision Climate) | SPEC Electrochemical Sensors for sub-ppm CO/NO2 detection.
-
-> **2. [ COMPUTE & POWER ]**
-> * **MVP (Current):** ESP32 dual-core executing non-blocking bare-metal C++ loops with manual 12-bit ADC attenuation.
-> * **Production Vision:** Ultra-low power STM32WL (Integrated LoRa SoC) to drop sleep currents from milliamps to microamps, powered by a ruggedized solar-harvesting IC.
-
-> **3. [ CONNECTIVITY & MESH ]**
-> * **MVP (Current):** High-frequency (2.5 Hz) Bluetooth Low Energy (GATT Nordic UART) for local dashboard visualization.
-> * **Production Vision:** Active LoRaWAN mesh routing compressed telemetry to municipal gateways.
-
-> **4. [ TELEMETRY DASHBOARD ]**
-> * **Edge Interface:** Vanilla HTML/JS parsing chunked BLE byte streams into rolling Chart.js visualizations.
-> * **Cloud Aggregation:** InfluxDB time-series database with a Grafana frontend for historical spatial mapping.
-
----
-
-## Repository Structure & Quick Start
-
-```text
-Aero-Trace/
-├── 📁 hardware/      # Schematics, BOM (₹8,500 target), and 3D CAD renders
-├── 📁 firmware/      # ESP32 C++ source (v1 BLE testing sketch)
-└── 📁 dashboard/     # Standalone Web Bluetooth HTML/JS dashboard
+1. **Edge MLR Correction:**
+   `PM_corr = β0 + β1*PM_raw + β2*RH + β3*RH² + β4*T + ε`
+2. **Incident Priority Index (IPI) Scoring:**
+   `|P| = 100 × Q × (w_A*A + w_P*P + w_S*S + w_W*W)`
+   *(Where Q = Data-quality, A = Anomaly magnitude, P = Plume agreement, S = Sensor confidence, W = Wind consistency)*
