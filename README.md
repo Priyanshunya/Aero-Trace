@@ -16,22 +16,22 @@ This creates "dispatch paralysis": municipal enforcement teams receive generic h
 ## Core Engineering Pillars
 Instead of passive data dashboards, our backend outputs a ranked "Next-Best-Check" dispatch queue to direct enforcement teams to exact GPS coordinates based on anomaly persistence and severity.
 
-* **Edge-Triggered SRAM Isolation:** Instead of blindly streaming raw 1Hz data, the ESP32-S3 buffers pre-event data locally in an SRAM circular buffer.
-* **Hypothesis-Falsification Engine:** Integrates SPEC CO/NO2 electrochemical gas tracers alongside dust ratios to chemically classify the violation type (e.g., distinguishing an illegal biomass fire from a dusty construction site) before inspectors arrive.
-* **Zero-OpEx Private LoRa:** Uses an SX1262 LoRa transceiver operating on the 865-867 MHz (India) band with AES-128/TLS 1.3 security to transmit compressed binary packets, avoiding cellular SIM fees entirely.
-* **Continuous Power-Path:** Employs a TI BQ24075 AC-to-battery failover system, piggybacking on municipal AC grids (like streetlights) and seamlessly switching to a 21700 Li-ion battery backup during daytime grid shutoffs.
+- **Edge-Triggered SRAM Isolation:** Instead of blindly streaming raw 1Hz data, the ESP32-S3 buffers pre-event data locally in an SRAM circular buffer.
+- **Hypothesis-Falsification Engine:** Integrates SPEC CO/NO2 electrochemical gas tracers alongside dust ratios to chemically classify the violation type (e.g., distinguishing an illegal biomass fire from a dusty construction site) before inspectors arrive.
+- **Zero-OpEx Private LoRa:** Uses an SX1262 LoRa transceiver operating on the 865-867 MHz (India) band with AES-128/TLS 1.3 security to transmit compressed binary packets, avoiding cellular SIM fees entirely.
+- **Continuous Power-Path:** Employs a TI BQ24075 AC-to-battery failover system, piggybacking on municipal AC grids (like streetlights) and seamlessly switching to a 21700 Li-ion battery backup during daytime grid shutoffs.
 
 ## Hardware Architecture & BOM (Target: ₹8,500)
 
-| Circuit Schematic | Assembled Prototype (Front) | Assembled Prototype (Back) |
-| :---: | :---: | :---: |
-| ![Schematic](hardware/Schematic_Diagram.png) | ![Front View](hardware/prototype_front.jpg) | ![Back View](hardware/prototype_back.jpg) |
+| Circuit Schematic | 3D Design |
+| :---: | :---: |
+| ![Schematic](hardware/Schematic_Diagram.png) | ![AeroTrace 3D Design](hardware/3D_Design_AeroTrace.png) |
 
-* **Compute:** ESP32-S3 (Edge compute & SRAM anomaly buffering)
-* **Particulate Sensing:** Plantower PMS5003 (PM1.0/2.5/10)
-* **Climate / Humidity Compensation:** Sensirion SHT40 (±0.2% RH)
-* **Combustion Gas Tracers:** SPEC CO / NO2 with LMP91000 ultra-low-noise analog front-end (AFE)
-* **RF Transceiver:** SX1262 LoRa Module
+- **Compute:** ESP32-S3 (Edge compute & SRAM anomaly buffering)
+- **Particulate Sensing:** Plantower PMS5003 (PM1.0/2.5/10)
+- **Climate / Humidity Compensation:** Sensirion SHT40 (±0.2% RH)
+- **Combustion Gas Tracers:** SPEC CO / NO2 with LMP91000 ultra-low-noise analog front-end (AFE)
+- **RF Transceiver:** SX1262 LoRa Module
 
 ## Edge Triage Pipeline
 Every alert must survive five checks (Capture, Quality Gate, Corroborate, Falsify, Verify) before reaching a field team.
